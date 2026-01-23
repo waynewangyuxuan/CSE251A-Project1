@@ -1,0 +1,27 @@
+Prototype Selection Experiment Results
+==================================================
+
+M=100, method=ours
+  Mean accuracy: 0.8619
+  Std: 0.0068
+  95% CI: [0.8525, 0.8713]
+  All accuracies: [0.8667 0.8571]
+
+M=100, method=random
+  Mean accuracy: 0.7239
+  Std: 0.0127
+  95% CI: [0.7063, 0.7415]
+  All accuracies: [0.7149 0.7329]
+
+M=500, method=ours
+  Mean accuracy: 0.9140
+  Std: 0.0033
+  95% CI: [0.9093, 0.9186]
+  All accuracies: [0.9116 0.9163]
+
+M=500, method=random
+  Mean accuracy: 0.8470
+  Std: 0.0028
+  95% CI: [0.8432, 0.8509]
+  All accuracies: [0.849  0.8451]
+

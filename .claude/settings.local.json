@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m py_compile:*)",
+      "Bash(python prototype_selection.py:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
