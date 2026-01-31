@@ -21,6 +21,8 @@ except ImportError:
 from prototype_selection import (
     select_prototypes_variance_centroid,
     select_prototypes_cluster_boundary,
+    select_prototypes_boundary_first,
+    select_prototypes_cnn,
     select_prototypes_random
 )
 from knn_classifier import knn_predict, compute_accuracy
@@ -30,6 +32,8 @@ from knn_classifier import knn_predict, compute_accuracy
 ALGORITHMS = {
     'variance_centroid': select_prototypes_variance_centroid,
     'cluster_boundary': select_prototypes_cluster_boundary,
+    'boundary_first': select_prototypes_boundary_first,
+    'cnn': select_prototypes_cnn,
     'random': select_prototypes_random,
     # Aliases for backward compatibility
     'ours': select_prototypes_variance_centroid,
