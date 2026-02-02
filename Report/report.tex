@@ -11,8 +11,8 @@
 
 \newcommand{\theHalgorithm}{\arabic{algorithm}}
 
-% Camera-ready style
-\usepackage[accepted]{icml2025}
+% Remove [accepted] to avoid "Proceedings of..." text
+\usepackage{icml2025}
 
 % Math packages
 \usepackage{amsmath}
@@ -59,24 +59,32 @@
 \printAffiliationsAndNotice{}
 
 \begin{abstract}
-We address the problem of selecting a small set of representative prototypes from a large training set for 1-nearest neighbor (1-NN) classification. We propose a variance-weighted centroid selection algorithm that allocates prototypes proportionally based on within-class variance and uses K-Means clustering to identify representative samples. Experiments on MNIST demonstrate that our method significantly outperforms random selection, with advantages becoming more pronounced at higher compression ratios. At 60$\times$ compression (1,000 prototypes from 60,000 training samples), our method achieves 92.47\% accuracy compared to 88.56\% for random selection. At extreme compression (6,000$\times$, only 10 prototypes), our method maintains 67.01\% accuracy while random selection degrades to 39.37\%. We also report negative results from two alternative approaches---boundary-first selection and condensed nearest neighbor---providing insights into why typical samples make better prototypes than boundary samples.
+We address the problem of selecting a small set of representative prototypes from a large training set for 1-nearest neighbor (1-NN) classification. We propose a variance-weighted centroid selection algorithm that allocates prototypes proportionally based on within-class variance and uses K-Means clustering to identify representative samples. Experiments on MNIST demonstrate that our method significantly outperforms random selection, with advantages becoming more pronounced at higher compression ratios. At 60$\times$ compression (1,000 prototypes from 60,000 training samples), our method achieves 92.47\% accuracy compared to 88.56\% for random selection (+3.91\%). At extreme compression (6,000$\times$, only 10 prototypes), our method maintains 67.01\% accuracy while random selection degrades to 39.37\% (+27.64\%).
 \end{abstract}
 
-\section{Introduction}
+%============================================================================
+% SECTION 1: High-level description (Requirement 1)
+%============================================================================
+\section{Introduction and Key Idea}
 \label{sec:intro}
 
-The $k$-nearest neighbor ($k$-NN) algorithm is a fundamental non-parametric classifier that predicts the label of a test sample based on the labels of its $k$ closest training samples \cite{cover1967nearest}. Despite its simplicity and strong theoretical guarantees, $k$-NN suffers from high computational cost at inference time, as it requires computing distances to all training samples.
+The $k$-nearest neighbor ($k$-NN) algorithm is a fundamental non-parametric classifier that predicts the label of a test sample based on the labels of its $k$ closest training samples \cite{cover1967nearest}. \textbf{Prototype selection} addresses the computational limitation of $k$-NN by selecting a representative subset of training samples to use for classification.
 
-\textbf{Prototype selection} addresses this limitation by selecting a representative subset of training samples, called prototypes, to use for classification instead of the full training set. The goal is to maintain classification accuracy while dramatically reducing storage and computational requirements.
+\subsection{Key Idea (High-Level Description)}
 
-In this work, we focus on prototype selection for 1-NN classification on MNIST handwritten digits. Our key contributions are:
+Our prototype selection method is based on two key observations:
 
 \begin{enumerate}
-    \item A \textbf{variance-weighted centroid selection} algorithm that allocates prototypes proportionally based on within-class variance and uses K-Means to identify representative samples.
-    \item Comprehensive experiments showing our method's advantage increases with compression ratio, achieving +27.64\% improvement over random selection at 6,000$\times$ compression.
-    \item \textbf{Negative results} demonstrating that boundary points and misclassified points are poor prototype candidates, contrary to intuition.
+    \item \textbf{Good prototypes are typical samples, not boundary samples.} While decision boundaries are defined by samples near class interfaces, the best prototypes are cluster centroids that represent the ``typical'' appearance of each class. Boundary points are often noisy or ambiguous.
+
+    \item \textbf{Classes with higher variance need more prototypes.} Different classes have different amounts of within-class variation. For example, the digit ``1'' has consistent appearance, while ``2'' exhibits more variation. We allocate prototypes proportionally to class variance.
 \end{enumerate}
 
+Our algorithm: (1) compute within-class variance for each class, (2) allocate prototype budget $M$ proportionally based on variance, (3) use K-Means clustering within each class to find representative samples.
+
+%============================================================================
+% SECTION 2: Problem Formulation
+%============================================================================
 \section{Problem Formulation}
 \label{sec:problem}
 
@@ -89,18 +97,11 @@ The 1-NN classifier predicts:
 
 The compression ratio is defined as $N/M$. For MNIST with $N = 60,000$ training samples, selecting $M = 1,000$ prototypes yields 60$\times$ compression.
 
-\section{Proposed Method}
+%============================================================================
+% SECTION 3: Pseudocode (Requirement 2)
+%============================================================================
+\section{Algorithm}
 \label{sec:method}
-
-\subsection{Key Insight}
-
-Our method is based on the observation that \textbf{good prototypes are typical, representative samples}---not boundary samples. While decision boundaries are defined by samples near class interfaces, the best prototypes are cluster centroids that represent the ``typical'' appearance of each class.
-
-Different classes may have different amounts of within-class variation. For example, in MNIST, the digit ``1'' has relatively consistent appearance, while ``2'' and ``4'' exhibit more variation. Classes with higher variance require more prototypes to adequately cover their data distribution.
-
-\subsection{Algorithm}
-
-Our variance-weighted centroid selection algorithm proceeds as follows:
 
 \begin{algorithm}[tb]
    \caption{Variance-Weighted Centroid Selection}
@@ -111,64 +112,79 @@ Our variance-weighted centroid selection algorithm proceeds as follows:
    \STATE
    \STATE // Step 1: Compute within-class variance
    \FOR{each class $c = 0, \ldots, C-1$}
-       \STATE $\sigma_c^2 \leftarrow \frac{1}{|D_c|} \sum_{\mathbf{x} \in D_c} \|\mathbf{x} - \boldsymbol{\mu}_c\|^2$
+       \STATE $\boldsymbol{\mu}_c \leftarrow \frac{1}{|D_c|} \sum_{\mathbf{x} \in D_c} \mathbf{x}$ \hfill (class mean)
+       \STATE $\sigma_c^2 \leftarrow \frac{1}{|D_c|} \sum_{\mathbf{x} \in D_c} \|\mathbf{x} - \boldsymbol{\mu}_c\|^2$ \hfill (class variance)
    \ENDFOR
    \STATE
-   \STATE // Step 2: Allocate prototypes proportionally
+   \STATE // Step 2: Allocate prototypes proportionally to variance
    \FOR{each class $c$}
        \STATE $M_c \leftarrow \max\left(1, \text{round}\left(M \cdot \frac{\sigma_c^2}{\sum_{c'} \sigma_{c'}^2}\right)\right)$
    \ENDFOR
-   \STATE Adjust allocations to sum to exactly $M$
+   \STATE Adjust $\{M_c\}$ so that $\sum_c M_c = M$
    \STATE
-   \STATE // Step 3: Select prototypes via K-Means
+   \STATE // Step 3: Select prototypes via K-Means clustering
    \STATE $\mathcal{I} \leftarrow \emptyset$
    \FOR{each class $c$}
        \STATE Run MiniBatchKMeans on $D_c$ with $M_c$ clusters
-       \STATE For each centroid, add index of nearest point to $\mathcal{I}$
+       \STATE Let $\{\mathbf{c}_1, \ldots, \mathbf{c}_{M_c}\}$ be the cluster centroids
+       \FOR{each centroid $\mathbf{c}_k$}
+           \STATE $i^* \leftarrow \argmin_{i: y_i = c} \|\mathbf{x}_i - \mathbf{c}_k\|$
+           \STATE $\mathcal{I} \leftarrow \mathcal{I} \cup \{i^*\}$
+       \ENDFOR
    \ENDFOR
    \STATE \textbf{return} $\mathcal{I}$
 \end{algorithmic}
 \end{algorithm}
 
-\textbf{Complexity:} The algorithm runs in $O(N \cdot M \cdot t)$ time where $t$ is the number of K-Means iterations. Using MiniBatchKMeans with batch size 256 and $t=100$ iterations, selection takes 2--680 seconds depending on $M$.
+\textbf{Implementation Details:}
+\begin{itemize}
+    \item We use MiniBatchKMeans (sklearn) with batch\_size=256, n\_init=3, max\_iter=100 for efficiency.
+    \item Time complexity: $O(N \cdot M \cdot t)$ where $t$ is K-Means iterations.
+    \item Runtime: 2--680 seconds depending on $M$ (on a standard laptop).
+\end{itemize}
 
+%============================================================================
+% SECTION 4: Experimental Results (Requirement 3)
+%============================================================================
 \section{Experiments}
 \label{sec:experiments}
 
-\subsection{Dataset and Setup}
+\subsection{Dataset and Experimental Setup}
 
-We evaluate on the MNIST handwritten digit dataset \cite{lecun1998mnist} containing 60,000 training and 10,000 test images of size $28 \times 28$ pixels. Images are flattened to 784-dimensional vectors and normalized to $[0, 1]$.
+\textbf{Dataset:} MNIST handwritten digits \cite{lecun1998mnist} with 60,000 training and 10,000 test images ($28 \times 28$ pixels, flattened to 784 dimensions, normalized to $[0, 1]$).
 
-We compare our method against random selection (ensuring at least one sample per class). All experiments use 5 trials with different random seeds, reporting mean $\pm$ standard deviation.
+\textbf{Baseline:} Random selection (uniformly sampling $M$ training points, ensuring at least one per class).
 
-\subsection{Baseline: Full 1-NN}
+\textbf{Trials and Error Bars:} All experiments use $n=5$ independent trials with different random seeds. We report mean $\pm$ standard deviation. The 95\% confidence interval is computed as:
+\begin{equation}
+    \text{CI}_{95\%} = \bar{x} \pm 1.96 \cdot \frac{s}{\sqrt{n}}
+\end{equation}
+where $\bar{x}$ is the sample mean and $s$ is the sample standard deviation.
 
-Using all 60,000 training samples, 1-NN achieves \textbf{96.91\%} test accuracy. This serves as the upper bound for prototype selection methods.
+\textbf{Upper Bound:} Full 1-NN using all 60,000 training samples achieves \textbf{96.91\%} test accuracy.
 
 \subsection{Main Results}
 
-Table \ref{tab:main-results} shows classification accuracy across different compression ratios. Our method consistently outperforms random selection, with the advantage growing dramatically as compression increases.
+Table \ref{tab:main-results} shows classification accuracy for $M \in \{10000, 5000, 1000\}$ (required) and additional values. Our method consistently outperforms random selection.
 
 \begin{table}[t]
-\caption{Test accuracy (\%) for different prototype budgets $M$. ``Ours'' refers to variance-weighted centroid selection.}
+\caption{Test accuracy (\%) for different prototype budgets $M$. Results are mean $\pm$ std over 5 trials. $\Delta$ = improvement over random.}
 \label{tab:main-results}
 \vskip 0.15in
 \begin{center}
 \begin{small}
 \begin{sc}
-\begin{tabular}{lcccr}
+\begin{tabular}{lcccc}
 \toprule
 $M$ & Compress. & Ours & Random & $\Delta$ \\
 \midrule
 10000 & 6$\times$    & 95.36$\pm$0.13 & 94.76$\pm$0.09 & +0.60 \\
 5000  & 12$\times$   & 94.58$\pm$0.21 & 93.63$\pm$0.09 & +0.95 \\
-2500  & 24$\times$   & 93.62$\pm$0.19 & 91.96$\pm$0.25 & +1.66 \\
 1000  & 60$\times$   & 92.47$\pm$0.17 & 88.56$\pm$0.51 & +3.91 \\
+\midrule
 500   & 120$\times$  & 91.40$\pm$0.33 & 84.70$\pm$0.28 & +6.70 \\
-250   & 240$\times$  & 89.71$\pm$0.34 & 80.27$\pm$0.36 & +9.44 \\
 100   & 600$\times$  & 86.19$\pm$0.40 & 72.39$\pm$0.80 & +13.80 \\
 50    & 1200$\times$ & 82.48$\pm$0.62 & 61.57$\pm$4.51 & +20.91 \\
-25    & 2400$\times$ & 77.11$\pm$0.91 & 49.76$\pm$5.80 & +27.35 \\
 10    & 6000$\times$ & 67.01$\pm$0.33 & 39.37$\pm$9.21 & +27.64 \\
 \bottomrule
 \end{tabular}
@@ -178,57 +194,114 @@ $M$ & Compress. & Ours & Random & $\Delta$ \\
 \vskip -0.1in
 \end{table}
 
-Key observations:
-\begin{itemize}
-    \item \textbf{Advantage scales with compression:} At low compression (6$\times$), improvement is modest (+0.60\%). At extreme compression (6000$\times$), improvement is dramatic (+27.64\%).
-    \item \textbf{Stability:} Random selection's variance increases sharply at low $M$ (std=9.21\% at $M$=10), while our method remains stable (std=0.33\%).
-    \item \textbf{Graceful degradation:} At 60$\times$ compression, we lose only 4.44\% accuracy compared to full 1-NN.
-\end{itemize}
+\begin{figure}[t]
+\vskip 0.1in
+\begin{center}
+\centerline{\includegraphics[width=\columnwidth]{main_comparison}}
+\caption{Accuracy vs. number of prototypes $M$. Our method (blue) consistently outperforms random selection (orange), with the gap widening at lower $M$.}
+\label{fig:main-comparison}
+\end{center}
+\vskip -0.2in
+\end{figure}
 
-\subsection{Negative Results: Failed Approaches}
+\begin{figure}[t]
+\vskip 0.1in
+\begin{center}
+\centerline{\includegraphics[width=\columnwidth]{improvement_bar}}
+\caption{Improvement of our method over random selection. The advantage scales dramatically with compression ratio: +0.60\% at $M$=10000 vs. +27.64\% at $M$=10.}
+\label{fig:improvement}
+\end{center}
+\vskip -0.2in
+\end{figure}
 
-We also experimented with two alternative approaches that performed poorly:
+\subsection{Key Observations}
 
-\textbf{Boundary-First Selection:} We hypothesized that points near class boundaries are most important for defining decision surfaces. We identified boundary points (those with mixed-class $k$-NN neighborhoods) and performed K-Means only on these boundary points. Result: \textbf{56.77\%} accuracy at $M$=500, worse than random (84.70\%).
+\begin{enumerate}
+    \item \textbf{Advantage scales with compression:} At 6$\times$ compression, improvement is modest (+0.60\%). At 6000$\times$ compression, improvement is dramatic (+27.64\%).
 
-\textbf{Condensed Nearest Neighbor (CNN):} Inspired by the classic CNN algorithm \cite{hart1968cnn}, we iteratively added misclassified points to the prototype set. Result: \textbf{62.97\%} accuracy at $M$=500, also worse than random.
+    \item \textbf{Stability:} Random selection's variance increases sharply at low $M$ (std=9.21\% at $M$=10), while our method remains stable (std=0.33\%). See Figure \ref{fig:main-comparison}.
 
-\textbf{Analysis:} Both methods fail because they select atypical samples. Boundary points are often ambiguous or noisy examples. Misclassified points are, by definition, hard to classify. Neither makes a good prototype. This confirms our key insight: \textbf{good prototypes are typical samples, not boundary samples}.
+    \item \textbf{Graceful degradation:} At 60$\times$ compression ($M$=1000), we achieve 92.47\%, losing only 4.44\% compared to full 1-NN (96.91\%).
+\end{enumerate}
 
+%============================================================================
+% SECTION 5: Critical Evaluation (Requirement 4)
+%============================================================================
+\section{Critical Evaluation}
+\label{sec:evaluation}
+
+\subsection{Is Our Method a Clear Improvement?}
+
+\textbf{Yes.} Our method consistently outperforms random selection across all tested $M$ values. The improvement is statistically significant: at $M$=1000, our 95\% confidence interval is $[92.32\%, 92.62\%]$ while random's is $[88.11\%, 89.01\%]$---the intervals do not overlap.
+
+The improvement is especially pronounced at high compression ratios, where our method provides \textbf{+27.64\%} accuracy over random selection at $M$=10 (6000$\times$ compression).
+
+\subsection{Scope for Improvement}
+
+Several avenues remain unexplored:
+
+\begin{enumerate}
+    \item \textbf{Prototype generation vs. selection:} Our method selects existing training points. Learning Vector Quantization (LVQ) could \emph{generate} optimal prototype positions not constrained to training data.
+
+    \item \textbf{Adaptive $k$ in K-Means:} Currently we fix $M_c$ based on variance. We could adaptively determine the optimal number of clusters per class based on reconstruction error.
+
+    \item \textbf{Cross-class interactions:} Our method processes each class independently. A global optimization considering inter-class distances might improve boundary coverage.
+
+    \item \textbf{Beyond Euclidean distance:} Using learned distance metrics or embedding spaces could better capture similarity structure.
+\end{enumerate}
+
+\subsection{What We Tried That Did Not Work}
+
+We experimented with two alternative approaches:
+
+\textbf{Boundary-First Selection:} Select points near class boundaries (those with mixed-class $k$-NN neighborhoods). Result: \textbf{56.77\%} at $M$=500, \emph{worse} than random (84.70\%).
+
+\textbf{Condensed Nearest Neighbor:} Iteratively add misclassified points \cite{hart1968cnn}. Result: \textbf{62.97\%} at $M$=500, also worse than random.
+
+\textbf{Lesson learned:} Boundary points and misclassified points are \emph{atypical} samples---they are ambiguous, noisy, or edge cases. Good prototypes should be \emph{typical, representative} samples, which is exactly what K-Means centroids capture.
+
+\subsection{What We Would Like to Try Next}
+
+\begin{enumerate}
+    \item \textbf{Hybrid approach:} Use our variance-weighted selection for most prototypes, but reserve a small budget for boundary-adjacent samples.
+
+    \item \textbf{Deep embeddings:} Apply our method in a learned feature space (e.g., CNN embeddings) rather than raw pixels.
+
+    \item \textbf{Other datasets:} Evaluate on CIFAR-10, Fashion-MNIST, or higher-dimensional datasets.
+\end{enumerate}
+
+%============================================================================
+% SECTION 6: Related Work
+%============================================================================
 \section{Related Work}
 \label{sec:related}
 
-Prototype selection has been studied extensively. The Condensed Nearest Neighbor (CNN) rule \cite{hart1968cnn} iteratively builds a consistent subset. Edited Nearest Neighbor (ENN) \cite{wilson1972asymptotic} removes noisy samples. More recent work includes genetic algorithms \cite{cano2003using}, particle swarm optimization \cite{nanni2009particle}, and deep learning approaches \cite{snell2017prototypical}.
+Prototype selection has been studied extensively. The Condensed Nearest Neighbor (CNN) rule \cite{hart1968cnn} iteratively builds a consistent subset. Edited Nearest Neighbor (ENN) \cite{wilson1972asymptotic} removes noisy samples. More recent work includes genetic algorithms \cite{cano2003using} and deep learning approaches \cite{snell2017prototypical}.
 
-Our variance-weighted approach is related to stratified sampling and importance sampling, but specifically designed for the geometry of $k$-NN classification.
+Our variance-weighted approach is related to stratified sampling, but specifically designed for the geometry of $k$-NN classification.
 
+%============================================================================
+% SECTION 7: Conclusion
+%============================================================================
 \section{Conclusion}
-\label{sec:conclusion}
 
-We presented a simple yet effective prototype selection method for 1-NN classification. By allocating prototypes based on within-class variance and using K-Means to identify representative samples, we achieve significant improvements over random selection, especially at high compression ratios.
+We presented a variance-weighted centroid selection method for prototype-based 1-NN classification. The key insight is that \textbf{good prototypes are typical samples}, not boundary samples. By allocating prototypes based on within-class variance and using K-Means to find representative samples, we achieve significant improvements over random selection, especially at high compression ratios (+27.64\% at 6000$\times$ compression).
 
-Our negative results with boundary-first and CNN-inspired approaches provide a valuable lesson: for prototype selection, \textbf{typical samples are better than boundary samples}. The best prototypes are cluster centroids that represent the ``normal'' appearance of each class, not edge cases.
+\textbf{Practical Recommendation:} For high accuracy, use $M \geq 1000$ (60$\times$ compression, 92.47\%). For extreme compression, $M = 50$ (1200$\times$) still achieves 82.48\%.
 
-\textbf{Practical Recommendation:} For applications requiring high accuracy, use $M \geq 1000$ (60$\times$ compression, 92.47\% accuracy). For storage-constrained applications, even $M = 50$ (1200$\times$ compression) maintains 82.48\% accuracy.
-
+%============================================================================
+% Acknowledgements
+%============================================================================
 \section*{Acknowledgements}
 
-This project was developed with assistance from Claude (Anthropic), a large language model. The LLM was used as an interactive coding assistant for:
+This project was developed with assistance from Claude (Anthropic), a large language model, used as an interactive coding assistant for algorithm design, implementation, debugging, and documentation. The human contributor provided problem formulation, direction, critical evaluation, and all final decisions. All experimental results were computed on actual hardware.
 
-\begin{itemize}
-    \item \textbf{Algorithm design:} Brainstorming and iterating on prototype selection approaches, including the variance-weighted allocation scheme.
-    \item \textbf{Implementation:} Writing Python code for data loading, prototype selection algorithms, experiment framework, and visualization.
-    \item \textbf{Debugging:} Identifying performance bottlenecks (e.g., switching from standard K-Means to MiniBatchKMeans).
-    \item \textbf{Documentation:} Maintaining progress logs and generating this report.
-\end{itemize}
-
-The human contributor provided problem formulation, high-level direction, critical evaluation of results, and all final decisions. The LLM served as a ``pair programming'' partner, accelerating implementation while the human maintained intellectual oversight.
-
-This collaboration exemplifies a productive human-AI workflow: the human provides domain expertise and judgment, while the AI accelerates routine tasks and suggests alternatives. All experimental results were computed on actual hardware; no results were fabricated.
-
+%============================================================================
+% Impact Statement
+%============================================================================
 \section*{Impact Statement}
 
-This paper presents work whose goal is to advance the field of Machine Learning. The technique of prototype selection can reduce computational costs and storage requirements for nearest-neighbor classifiers, potentially enabling deployment on resource-constrained devices. We do not foresee specific negative societal consequences from this work.
+This paper presents work to advance efficient nearest-neighbor classification. We do not foresee specific negative societal consequences.
 
 \bibliography{references}
 \bibliographystyle{icml2025}
