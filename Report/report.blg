@@ -1,0 +1,48 @@
+This is BibTeX, Version 0.99d (TeX Live 2024)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: report.aux
+The style file: icml2025.bst
+Database file #1: references.bib
+Warning--there's a number but no volume in wilson1972asymptotic
+You've used 7 entries,
+            2773 wiz_defined-function locations,
+            642 strings with 5923 characters,
+and the built_in function-call counts, 3410 in all, are:
+= -- 312
+> -- 161
+< -- 7
++ -- 55
+- -- 48
+* -- 280
+:= -- 505
+add.period$ -- 21
+call.type$ -- 7
+change.case$ -- 37
+chr.to.int$ -- 7
+cite$ -- 15
+duplicate$ -- 160
+empty$ -- 300
+format.name$ -- 59
+if$ -- 719
+int.to.chr$ -- 1
+int.to.str$ -- 1
+missing$ -- 7
+newline$ -- 43
+num.names$ -- 28
+pop$ -- 70
+preamble$ -- 1
+purify$ -- 30
+quote$ -- 0
+skip$ -- 121
+stack$ -- 0
+substring$ -- 179
+swap$ -- 22
+text.length$ -- 3
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 77
+warning$ -- 1
+while$ -- 34
+width$ -- 0
+write$ -- 99
+(There was 1 warning)
