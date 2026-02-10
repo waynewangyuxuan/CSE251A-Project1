@@ -5,7 +5,16 @@
       "Bash(python prototype_selection.py:*)",
       "Bash(git add:*)",
       "Bash(pip install:*)",
-      "Bash(python main.py:*)"
+      "Bash(python main.py:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd detailed experiments and negative results documentation\n\n- Add boundary_first and CNN algorithms \\(both failed experiments\\)\n- Run detailed trend experiments for M values: 7500, 2500, 250, 50, 25, 10\n- Update PROGRESS.md with comprehensive results and key insights\n- Key finding: our method''s advantage increases dramatically as M decreases\n  - M=10000: +0.60% vs random\n  - M=10: +27.64% vs random\n- Document negative results: boundary points are not good prototypes\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(pdflatex:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd LaTeX report with ICML 2025 template\n\nReport includes:\n- Variance-weighted centroid selection algorithm with pseudocode\n- Comprehensive experimental results \\(M=10 to M=10000\\)\n- Negative results: boundary-first and CNN approaches\n- Key insight: typical samples make better prototypes than boundary samples\n- LLM usage disclosure in Acknowledgements section\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(bibtex:*)",
+      "Bash(zip:*)",
+      "Bash(pip3 install:*)",
+      "Bash(chmod:*)",
+      "Bash(source:*)",
+      "Bash(python3:*)"
     ]
   }
 }

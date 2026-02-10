@@ -225,7 +225,88 @@ $M$ & Compress. & Ours & Random & $\Delta$ \\
 \end{enumerate}
 
 %============================================================================
-% SECTION 5: Critical Evaluation (Requirement 4)
+% SECTION 5: Algorithm Design Journey
+%============================================================================
+\section{Algorithm Design Journey}
+\label{sec:design}
+
+Our final algorithm emerged through an iterative design process. We document all versions to illustrate the evolution of our approach and key lessons learned.
+
+\subsection{Early Attempts: Computational Challenges (V1--V3)}
+
+\textbf{V1: Variance-Weighted Boundary Selection.} Our initial design combined three ideas: (1) allocate prototypes by within-class variance, (2) use K-Means for spatial coverage, and (3) within each cluster, select the point with highest ``boundary score'' (proximity to other-class points).
+
+\emph{Problem:} Computing boundary scores requires $O(N^2)$ distance calculations---36 billion operations for $N$=60,000. This was computationally infeasible.
+
+\textbf{V2: Ball Tree Acceleration.} We used sklearn's NearestNeighbors with Ball Tree to accelerate boundary score computation.
+
+\emph{Problem:} K-Means itself became the bottleneck. Still too slow.
+
+\textbf{V3: MiniBatchKMeans.} Replaced standard K-Means with MiniBatchKMeans (batch\_size=256, n\_init=3).
+
+\emph{Problem:} Still required 7+ minutes per run.
+
+\subsection{Successful Approach (V4): Variance-Weighted Centroid Selection}
+
+\textbf{Key insight:} We realized that K-Means centroids already represent \emph{typical} samples---computing boundary scores was unnecessary overhead.
+
+\textbf{Final algorithm:} (1) Compute within-class variance, (2) allocate prototypes proportionally, (3) run MiniBatchKMeans per class, (4) select training points closest to each centroid.
+
+\emph{Result:} Fast (2--680 seconds depending on $M$) and effective.
+
+\subsection{Alternative Approaches That Did Not Improve (V5)}
+
+\textbf{V5: Cluster-based Boundary Selection.} We reintroduced boundary scoring, but computed it on \emph{centroids} rather than individual points, reducing complexity from $O(N^2)$ to $O(M^2)$.
+
+\emph{Result:} Accuracy nearly identical to V4 (difference $<$ 0.02\%). The boundary-based ordering provided no improvement, so we prefer the simpler V4.
+
+\subsection{Failed Approaches (V6--V7)}
+
+\textbf{V6: Boundary-First Selection.} Hypothesis: points near decision boundaries should be the best prototypes. We identified boundary points (those with mixed-class $k$-NN neighborhoods) and applied K-Means only to these points.
+
+\emph{Result:} \textbf{56.77\%} accuracy at $M$=500---\emph{worse} than random selection (84.70\%).
+
+\textbf{V7: Condensed Nearest Neighbor (CNN).} The classic CNN algorithm \cite{hart1968cnn} iteratively adds misclassified points to the prototype set.
+
+\emph{Result:} \textbf{62.97\%} at $M$=500---also worse than random.
+
+\subsection{Summary of Algorithm Versions}
+
+Table \ref{tab:versions} summarizes all algorithm versions tested. Our final method (V4) achieves the best balance of accuracy and efficiency.
+
+\begin{table}[t]
+\caption{Summary of algorithm versions. Accuracy at $M$=500.}
+\label{tab:versions}
+\vskip 0.15in
+\begin{center}
+\begin{small}
+\begin{tabular}{llcc}
+\toprule
+Ver. & Method & Acc. & Status \\
+\midrule
+V1--V3 & Boundary scoring & --- & Too slow \\
+V4 & Var-weighted centroid & 91.4 & \textbf{Final} \\
+V5 & Cluster boundary & 91.4 & No gain \\
+V6 & Boundary-first & 56.8 & Failed \\
+V7 & CNN & 63.0 & Failed \\
+--- & Random (baseline) & 84.7 & --- \\
+\bottomrule
+\end{tabular}
+\end{small}
+\end{center}
+\vskip -0.1in
+\end{table}
+
+\subsection{Key Lesson Learned}
+
+\begin{center}
+\fbox{\parbox{0.9\columnwidth}{
+\textbf{Boundary points $\neq$ good prototypes.} Boundary points are important for \emph{defining} decision boundaries, but they are often noisy, ambiguous, or atypical samples. Good prototypes should be \textbf{typical, representative samples}---exactly what K-Means centroids capture.
+}}
+\end{center}
+
+%============================================================================
+% SECTION 6: Critical Evaluation (Requirement 4)
 %============================================================================
 \section{Critical Evaluation}
 \label{sec:evaluation}
@@ -250,16 +331,6 @@ Several avenues remain unexplored:
     \item \textbf{Beyond Euclidean distance:} Using learned distance metrics or embedding spaces could better capture similarity structure.
 \end{enumerate}
 
-\subsection{What We Tried That Did Not Work}
-
-We experimented with two alternative approaches:
-
-\textbf{Boundary-First Selection:} Select points near class boundaries (those with mixed-class $k$-NN neighborhoods). Result: \textbf{56.77\%} at $M$=500, \emph{worse} than random (84.70\%).
-
-\textbf{Condensed Nearest Neighbor:} Iteratively add misclassified points \cite{hart1968cnn}. Result: \textbf{62.97\%} at $M$=500, also worse than random.
-
-\textbf{Lesson learned:} Boundary points and misclassified points are \emph{atypical} samples---they are ambiguous, noisy, or edge cases. Good prototypes should be \emph{typical, representative} samples, which is exactly what K-Means centroids capture.
-
 \subsection{What We Would Like to Try Next}
 
 \begin{enumerate}
@@ -271,7 +342,7 @@ We experimented with two alternative approaches:
 \end{enumerate}
 
 %============================================================================
-% SECTION 6: Related Work
+% SECTION 7: Related Work
 %============================================================================
 \section{Related Work}
 \label{sec:related}
@@ -281,7 +352,7 @@ Prototype selection has been studied extensively. The Condensed Nearest Neighbor
 Our variance-weighted approach is related to stratified sampling, but specifically designed for the geometry of $k$-NN classification.
 
 %============================================================================
-% SECTION 7: Conclusion
+% SECTION 8: Conclusion
 %============================================================================
 \section{Conclusion}
 
