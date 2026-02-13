@@ -11,8 +11,10 @@
 - 标准化后使用，augment 一列 1 作为 bias → 14 维
 
 ### Baseline
-- sklearn LogisticRegression(C=1e10), accuracy = 1.0000
+- sklearn LogisticRegression(C=1e10, 无正则化), accuracy = 1.0000
 - **L* = 0.00029259**
+- 注意：数据线性可分，无正则化的 loss 理论下确界为 0，L* 是 sklearn solver 停下来的位置
+- 我们的 CD 方法会继续优化到 loss ≈ 0，这是正确行为
 
 ### 算法设计
 

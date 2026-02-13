@@ -6,13 +6,10 @@ from sklearn.linear_model import LogisticRegression
 from data_loader import load_binary_wine
 from logistic_loss import logistic_loss, augment
 
-# sklearn minimizes:  (1/2)||w||^2 + C * sum_i log_loss_i
-# Our loss:           (1/n) sum_i log_loss_i + (lam/2)||w||^2
-# Dividing sklearn by C*n: (1/(2Cn))||w||^2 + (1/n) sum log_loss
-# So lam = 1/(C*n).  With n=130, lam=0.01 → C = 1/(0.01*130) ≈ 0.769
-LAM = 0.01
-N_SAMPLES = 130  # class 1 + class 2
-C_SKLEARN = 1.0 / (LAM * N_SAMPLES)
+# No regularization per requirement.
+# Set C very large to make sklearn's built-in regularization irrelevant.
+LAM = 0.0
+C_SKLEARN = 1e10
 
 
 def run_baseline():
@@ -28,8 +25,7 @@ def run_baseline():
     L_star = logistic_loss(w_sklearn, X_aug, y, lam=LAM)
 
     print(f"sklearn accuracy: {clf.score(X, y):.4f}")
-    print(f"sklearn w norm: {np.linalg.norm(w_sklearn[:-1]):.4f}")
-    print(f"L* (regularized loss): {L_star:.8f}")
+    print(f"L* (final loss): {L_star:.8f}")
 
     return w_sklearn, L_star
 
